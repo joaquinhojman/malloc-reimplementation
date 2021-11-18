@@ -119,7 +119,6 @@ static void test7() {
     if (a == NULL) {
         printf("No se pudo alocar el elemento A\n");
     } 
-    //si pongo 4096 no funciona (caso patologico)
     char *b = mymalloc(6144);
     if (b == NULL) {
         printf("No se pudo alocar el elemento B\n");
@@ -128,21 +127,30 @@ static void test7() {
     if (c == NULL) {
         printf("No se pudo alocar el elemento C\n");
     }         
-    char *d = mymalloc(4096);
+    char *d = mymalloc(2048);
     if (d == NULL) {
         printf("No se pudo alocar el elemento D\n");
     }
     myfree(b);
-    d = mymalloc(4096);
+
+    d = mymalloc(2048);
     if (d == NULL) {
         printf("No se pudo alocar el elemento D\n");
     } else {
         printf("Libere B y pude allocar D\n");
     }
 
+    char *e = mymalloc(2048);
+    if (e == NULL) {
+        printf("No se pudo alocar el elemento e\n");
+    } else {
+        printf("pude allocar E\n");
+    }
+
     myfree(a);
     myfree(c);
     myfree(d);
+    myfree(e);
 
     printf("TEST 7 Completo\n\n");
 }
