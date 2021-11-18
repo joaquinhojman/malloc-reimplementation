@@ -19,9 +19,11 @@ static t_block* extend_heap(){
         printf("FALLO MMAP EN EXTEND_HEAP\n");
         return NULL;
     }
+    block->prev = NULL;
+    block->next = NULL;
     block->size = TAM_BLOQUE;
     block->free = LIBRE;
-    block->data = block + sizeof(t_block);
+    block->data = block + 1;
 
     base = block;
     return block;
@@ -34,7 +36,7 @@ static t_block* split_block(t_block * old_block, size_t size) {
     new_block->next = old_block->next;
     new_block->free = LIBRE;
     new_block->size = old_block->size - size - sizeof(t_block);
-    new_block->data = new_block + sizeof(t_block);
+    new_block->data = new_block + 1;
     
     old_block->next = new_block;
     old_block->size = size;
@@ -48,11 +50,13 @@ static t_block* split_block(t_block * old_block, size_t size) {
 //encuentra un bloque libre
 static t_block* find_block(size_t size){
     t_block* block = base;
-    while (!(block->size > size && block->free == LIBRE)){
+    for (int _i = 0; _i < TAM_BLOQUE/TAM_MINIMO; _i++) {
+        if (block->size > size && block->free == LIBRE)
+            return block;
         if (block->next) block = block->next;
-        else return NULL;        
+        else break;        
     }
-    return block;
+    return NULL;
 }
 
 void* mymalloc(size_t size) {
@@ -86,7 +90,7 @@ void myfree(void *ptr){
         printf("Invalid Free\n");
         return;
     }
-    t_block* block = (t_block *) ptr - sizeof(t_block);
+    t_block* block = (t_block *) ptr - 1;
     if (block->free == LIBRE) {
         printf("Double Free\n");
         return;
@@ -95,14 +99,20 @@ void myfree(void *ptr){
     if (block->next) {
         if (block->next->free == LIBRE) {
             block->size += block->next->size + sizeof(t_block);
-            if (block->next->next) block->next = block->next->next;
+            if (block->next->next){
+                block->next = block->next->next;
+                block->next->prev = block;
+            } 
         }
     }
 
     if (block->prev) {
         if (block->prev->free == LIBRE) {
             block->prev->size += block->size + sizeof(t_block);
-            if (block->next) block->prev->next = block->next;
+            if (block->next){
+                block->prev->next = block->next;
+                block->next->prev = block->prev;
+            } 
             block = block->prev;
         }
     }

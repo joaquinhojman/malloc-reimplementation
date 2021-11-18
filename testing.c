@@ -115,34 +115,42 @@ static void test6() {
 
 static void test7() {
     printf("TEST 7 --- Alloco elementos hasta llenar mi heap, borro un elemento del medio y agrego elementos alli\n");
-    char *a = mymalloc(3000);
+    char *a = mymalloc(4096);
     if (a == NULL) {
         printf("No se pudo alocar el elemento A\n");
     } 
-    char *b = mymalloc(6000);
+    //si pongo 4096 no funciona (caso patologico)
+    char *b = mymalloc(6144);
     if (b == NULL) {
         printf("No se pudo alocar el elemento B\n");
     } 
-    char *c = mymalloc(2500);
+    char *c = mymalloc(4096);
     if (c == NULL) {
         printf("No se pudo alocar el elemento C\n");
     }         
-    char *d = mymalloc(5000);
+    char *d = mymalloc(4096);
     if (d == NULL) {
         printf("No se pudo alocar el elemento D\n");
     }
     myfree(b);
-    d = mymalloc(5000);
+    d = mymalloc(4096);
     if (d == NULL) {
         printf("No se pudo alocar el elemento D\n");
     } else {
         printf("Libere B y pude allocar D\n");
     }
 
+    myfree(a);
+    myfree(c);
+    myfree(d);
+
     printf("TEST 7 Completo\n\n");
 }
 
 int main() {
+  //  char* cadena = mymalloc(256);
+  //  strcpy(cadena,"hola mundo");
+ 
     test1();
     test2();
     test3();
@@ -151,5 +159,7 @@ int main() {
     test6();
     test7();
 
+   // printf("cadena final: %s\n",cadena);
+   // myfree(cadena);
     return 0;
 }
