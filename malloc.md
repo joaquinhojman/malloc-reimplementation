@@ -24,7 +24,7 @@ Si no fuera la primera vez que se llama a malloc, se llama a la función find_bl
 Una vez se devolvio un bloque valido, ya sea por extend heap o por find block se debe llamar a split block, cuya función es cortar el size que el usuario no pidio para crear una nueva región que pueda ser devuelta la siguiente vez que se llame a malloc. Lo que hace split block es crear un new_block en la dirección old_block->data + size, esto asegura que el nuevo bloque este mapeado en memoria justo donde terminar el espacio de data del anterior, de esta manera el usuario no va pisar contenido de los bloques en la memoria. Se inicializa el nuevo bloque, colocando correctamente sus vecinos y el tamaño que tendra disponible.
 
 Por ultimo se setea el bloque como ocupado y se devuelve al usuario el campo data del bloque, el cual ya puede usarlo como quiera. Se presenta un pseudocodigo de malloc:
-
+```
 def malloc(size):
     align(size)
     if base != null:
@@ -36,7 +36,7 @@ def malloc(size):
             extend_heap
     else:
         extend_heap (el heap estara vacio)
-
+```
 Luego de utilizar el bloque de memoria el usuario puede llamar a free, pasandole un puntero a void. Este puntero justamente va a apuntar al campo data del bloque, entonces sabemos que justo antes de dicho puntero, en memoria, esta la metadata del bloque, con lo que podemos recuperar nuestra estructura del bloque. Con esto podemos validar que el bloque exista y que no haya sido liberado antes (doble free).
 
 Necesitamos aplicar coalescing, por lo que revisamos si sus vecinos estan libres (antes revisamos si existen), en caso afirmativo debemos combinar nuestro bloque con su/s vecino/s. No solo debemos combinarlos en cuestion de tamaño sino que ademas debemos setear correctamente sus nuevos vecinos.
@@ -46,7 +46,7 @@ Una vez hecho esto, revisamos si el nuevo bloque (ya combinado con sus vecinos) 
 Algo para destacar es que los errores en esta implementación, es decir double free e invalid free, simplemente se imprimen por pantalla y retorna, mientras que la version original de free corta la ejecución mediante una interrupción. Esto seria facilmente imitable reemplazando los return por, por ejemplo, la syscall exit(-1).
 
 Se presenta pseudocodigo de free:
-
+```
 def free(p):
     if p is valid:
         obtenemos la direccion del bloqe
@@ -57,7 +57,7 @@ def free(p):
         si no hay mas bloques, seteamos base = null
     else:
         error
-
+```
 
 
 Testing
