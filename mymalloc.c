@@ -10,7 +10,7 @@
 //si x no esta alineado a 4, lo alinea al multiplo de 4 mayor mas cercano
 #define ALIGN4(x) (((((x)-1)>>2)<<2)+4)
 
-t_block *base = NULL;	// First free block
+t_block *base = NULL;	// First free region
 
 //extiende el heap en un bloque de tamaño fijo de 16KiB (enunciado)
 static t_block* extend_heap(){
@@ -29,7 +29,7 @@ static t_block* extend_heap(){
     return block;
 }
 
-//corta un bloque
+//corta una region
 static t_block* split_block(t_block * old_block, size_t size) {
     t_block* new_block = (t_block *)((char*)old_block->data + size);
     new_block->prev = old_block;
@@ -47,7 +47,7 @@ static t_block* split_block(t_block * old_block, size_t size) {
     return old_block;
 }
 
-//encuentra un bloque libre
+//encuentra una region libre
 static t_block* find_block(size_t size){
     t_block* block = base;
     for (int _i = 0; _i < TAM_BLOQUE/TAM_MINIMO; _i++) {
