@@ -90,6 +90,10 @@ void myfree(void *ptr){
         printf("Invalid Free\n");
         return;
     }
+    if (base == NULL) {
+        printf("Double Free\n"); //la base ya fuera liberada antes, heap vacio
+        return;
+    }
     t_block* block = (t_block *) ptr - 1;
     if (block->free == LIBRE) {
         printf("Double Free\n");

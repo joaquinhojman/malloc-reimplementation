@@ -24,7 +24,7 @@ Si no fuera la primera vez que se llama a malloc, se llama a la función find_bl
 Una vez se devolvio un bloque valido, ya sea por extend heap o por find block se debe llamar a split block, cuya función es cortar el size que el usuario no pidio para crear una nueva región que pueda ser devuelta la siguiente vez que se llame a malloc. Lo que hace split block es crear un new_block en la dirección old_block->data + size, esto asegura que el nuevo bloque este mapeado en memoria justo donde terminar el espacio de data del anterior, de esta manera el usuario no va pisar contenido de los bloques en la memoria. Se inicializa el nuevo bloque, colocando correctamente sus vecinos y el tamaño que tendra disponible.
 
 Por ultimo se setea el bloque como ocupado y se devuelve al usuario el campo data del bloque, el cual ya puede usarlo como quiera. Se presenta un pseudocodigo de malloc:
-```
+
 def malloc(size):
     align(size)
     if base != null:
@@ -36,7 +36,7 @@ def malloc(size):
             extend_heap
     else:
         extend_heap (el heap estara vacio)
-```
+
 Luego de utilizar el bloque de memoria el usuario puede llamar a free, pasandole un puntero a void. Este puntero justamente va a apuntar al campo data del bloque, entonces sabemos que justo antes de dicho puntero, en memoria, esta la metadata del bloque, con lo que podemos recuperar nuestra estructura del bloque. Con esto podemos validar que el bloque exista y que no haya sido liberado antes (doble free).
 
 Necesitamos aplicar coalescing, por lo que revisamos si sus vecinos estan libres (antes revisamos si existen), en caso afirmativo debemos combinar nuestro bloque con su/s vecino/s. No solo debemos combinarlos en cuestion de tamaño sino que ademas debemos setear correctamente sus nuevos vecinos.
@@ -46,7 +46,7 @@ Una vez hecho esto, revisamos si el nuevo bloque (ya combinado con sus vecinos) 
 Algo para destacar es que los errores en esta implementación, es decir double free e invalid free, simplemente se imprimen por pantalla y retorna, mientras que la version original de free corta la ejecución mediante una interrupción. Esto seria facilmente imitable reemplazando los return por, por ejemplo, la syscall exit(-1).
 
 Se presenta pseudocodigo de free:
-```
+
 def free(p):
     if p is valid:
         obtenemos la direccion del bloqe
@@ -57,7 +57,7 @@ def free(p):
         si no hay mas bloques, seteamos base = null
     else:
         error
-```
+
 
 
 Testing
@@ -77,7 +77,7 @@ El tercer test primero alloca un int, es decir intenta allocar 4 bytes, pero si 
 
 El test cuatro es muy sencillo, simplemente crea un vector de cadenas, y luego alloca tres cadenas con malloc, cada una de 256 bytes. Setea un texto (menor a 256 bytes) a cada cadena y luego la guarda en el vector. Luego de allocar las 3 cadenas las imprime en orden y luego las libera con free, sin resultar en ningun error.
 
-El test cinco lo que hace es allocar primero dos cadenas de 256 bytes cada una, a y b. Luego libera a, a continuación intenta liberar a nuvamente y lo que se obtiene es un error del tipo double free, que es lo esperado por esta prueba. Si no hubiesemos allocado dos cadenas, sino una sola, y la hubiesemos liberado dos veces, el resultado hubiese sido exactamente el mismo.
+El test cinco lo que hace es allocar primero dos cadenas de 256 bytes cada una, a y b. Luego libera a, a continuación intenta liberar a nuvamente y lo que se obtiene es un error del tipo double free, que es lo esperado por esta prueba. Si no hubiesemos allocado dos cadenas, sino una sola, y la hubiesemos liberado dos veces, el resultado hubiese sido exactamente el mismo. Cambiando el orden de los free, o liberando dos veces b en lugar de a, el resultado tambien hubiera sido un double free.
 
 El test seis hace lo siguiente: primero alloca un punteo a int de 256 bytes y luego trata de allocar una estructura de 16Kib, como ya se supera el tamaño maximo del bloque el programa falla y no alloca esta segunda estructura. Lo que sucede a continuación es que se desalloca la primera estructura y nuevamente se intenta alloca la segunda, mas pesada. La prueba finaliza con la segunda estructura allocada correctamente porque ahora si hay espacio suficiente. Con la versión de malloc de la libreria estandar, como ya sucedio antes, no hubieramos tenido problema en allocar las dos estructuras juntas.
 
@@ -85,3 +85,29 @@ La prueba número 7 tiene un funcionamiento similar a la seis pero busca probar 
 
 Si miramos todas las pruebas, vemos que en cada una de ellas de desallocan todos los elementos allocados, es decir que al final de cada una se destruye nuestro heap por
 lo que cada prueba es como si corrieramos un programa individual para ella. Para verificar un poco la robustez del programa se hizo lo siguiente: se alloco antes de llamar a las pruebas una cadena de 256 bytes, la cual se desalloco recien luego de correr todas las pruebas, esto genero que el heap no se destruyera en ningun momento despues del malloc de la cadena. Los resultados de esto fueron que todas las pruebas pasan exitosamente, salvo algunas donde se allocaban estructuras de 16Kib, las cuales logicamente ahora no podrian allocarse ya que no entrarian por espacio, pero ese comportamiento tambien es el esperado. El contenido de la cadena que se definio antes de las pruebas se imprimio al final de las mismas y se observo exitosamente que dicho contenido no cambio.
+
+
+Parte 3: Análisis de la implementación
+--- 
+
+En esta sección se analizara el programa implementado y se presentaran problemas que podrian surgir y formas posibles de solucionarlos. Este analisis esta orientado a la implementación que corresponde a un unico bloque donde se divide el espacio en regiones. Es probable que estos problemas se solucionarian solos (aunque quizas no de la forma mas eficiente) si se realizara la parte grupal del trabajo, consistente en agregar nuevos bloques de memoria si hace falta mas espacio.
+
+Cada vez que se llama a free para liberar memoria allocada previamente se aplica una tecnica de coalescing que consiste en verificar si los vecinos de la región allocada estan libres, y en ese caso fusionarlos. Parece una tecnica infalible pero veamos el siguiente caso: se realizan n pedidos de memoria a la funcion malloc de 256 bytes cada uno, de esta manera tenemos n regiones en nustra lista enlazada. Imaginemos que se liberan con free la region 1, 3, 5, y asi liberando todas las regiones "impares", liberando de esta forma n/2 regiones.
+
+Supongamos ahora que queremos allocar una región de 257 bytes... esto no va a ser posible. Si bien tenemos 8KiB libres, por la forma que actuan malloc y free todos los bloques libres tendran 256 bytes para allocar y nada mas, lo que seria un problema porque no podriamos aprovechar un monton de memoria que esta literalmente libre.
+
+Una solución posible tiene que ver con la manera en que se liberan las regiones. Podriamos tratar de pensar una solución que al liberar las regiones intente reubicarlas de alguna manera. Por ejemplo supongamos que tenemos n regiones de 256 bytes que ocupan el bloque completo, podriamos hacer que cuando se hace free en alguna region, todas las demas regiones que venian despues se muevan hacia adelante, dejando el espacio vacio al final. Cuando se haga free de otra region podriamos realizar la misma operación, y asi sucesivamente. De esta manera todo el espacio disponible forma una unica region que esta ubicada al final de los bloques ocupados. Si bien esto no parece lo mas eficiente en terminos de tiempo, ya que tenemos que recorrer todas las regiones que vienen despues de la que estamos liberando, nos garantizara que siempre que se pida memoria, si hay esa cantidad disponible, se pueda obtener sin depender de como se fragmento esa memoria en el pasado.
+
+Como nota al margen del ultimo parrafo podemos comentar que la solución propuesta podria no ser lo mas eficiente en un bloque de gran capacidad, sin embargo practicamente no acarrearia penalidades en tiempo en el caso de esta implementación debido a que el bloque tiene 16Kib y el tamaño minimo de una región es 256 b por lo que a lo sumo se recorrerian 63 regiones (16Kib/256b = 64 pero debido a la necesidad de allocar metadata no podrian guardarse exactamente 64 regiones).
+
+Otra situación donde desperdiciariamos memoria es el caso de hacer un malloc donde el tamaño pedido contando la metadata de la region deje libres 255 bytes (o menos). Dado que lo minimo que alloca una región son 256, esa cantidad libre nunca podriamos usarla. Caberia preguntarnos entonces si es estrictamente necesario tener un valor minimo. La respuesta deberia ser que si, es necesario un valor minimo ya que recordamos nuevamente que... tenemos que allocar metadata! Si no tuvieramos un valor minimo y el pedido del usuario fuese menos de lo que pesa la metadata, no podriamos allocarla y por ende el programa fallaria. De todas maneras, una solución a esto podria ser que el valor minimo del pedido sea justamente el peso de la metadata + 1 byte. 
+
+Pensemos ahora en la forma que malloc selecciona la region de memoria que va a devolver al usuario, en esta implementación corresponde a la función find_block. Esta función aplica una estrategia conocida como first fit a la hora de decidir qué región devolver. La estrategia es sencilla y consiste en lo siguiente: si la región tiene un espacio suficiente para allocar el pedido del usuario (y por supuesto esta libre) se la devuelve sin mas contemplaciones. Esta región es cortada con la función split_block para devolverle al usuario el espacio pedido (tambien se reserva espacio para metadata aunque este no sea devuelto directamente al usuario).
+
+En este momento podriamos pensar si esta forma de seleccionar la región es la mas inteligente. Rapidamente podemos idear dos alternativas: seleccionar la región mas grande o seleccionar la región mas pequeño, veamos ambas opciones. 
+
+Seleccionar la región mas pequeño parece una buena alternativa, ya que dejamos libres lsa regiones grande para pedidos que requieran todo ese espacio libre. Lo que tendria esta opción de malo es que, por ejemplo si tenemos una region de 300 bytes y se hace un pedido de 256, los 44 bytes restantes nunca podrian ser accedidos... pero esto tambien pasaria con nuestra versión con first fit.
+
+La opción de seleccionar la región mas grande no parece muy buena. Nos asegurariamos que en la mayoria de los casos la región nueva que va a continuación de la que acabamos de allocar tendria espacio suficiente para un nuevo malloc, pero si de repente recibimos un pedido grande por ahi no podriamos guardarlo porque dedicamos ese espacio a regiones mas pequeñas que fraccionaron dicho espacio.
+
+Concluimos entonces que first fit no es una mala opción, pero es probable que una selección inteligente donde se elija la region mas pequeña podria optimizar el uso del espacio del bloque. Cabe destacar que para esto habria que recorrer una vez todas las regiones para encontrar aquella de menor tamaño, y luego volver a recorrer hasta encontrar nuevamente esa región minima.
